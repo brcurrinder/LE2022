@@ -4,13 +4,10 @@ library(corrplot)
 library(SARP.compo)
 library(broom)
 
-#used these instructions https://community.rstudio.com/t/how-to-read-csv-file-from-googledrive/135922 to get the data directly from our google drive so that it will work on anyone's computer
-
-id = "1fDTIKP_XCfe9OobnxjTjiJsRw1kEJDhh"
-buoy = read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", id)) %>%  
+#import buoy data
+buoy = read.csv("Data/Buoy/daily_buoy.csv") %>%  
   mutate(sampledate = ymd(sampledate)) %>% 
   select(-year4)
-rm(id) 
 
 # make sure data values are NA when flagged, preserving as many points as possible
 buoy_long = buoy %>% 
@@ -32,9 +29,7 @@ buoy = buoy_long %>%
 
 # read LS data
 
-id = "1gDUSm9cgG1x8ails5ZkCtVsECnjXX2Vh"
-ls8 = read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", id)) %>% 
-#ls8 <- read.csv('C:/Users/maxgl/Documents/RPI/GLEON/LakeExpedition/rs_Data/LS8_Buoy100m.csv') %>% 
+ls8 = read.csv("Data/Landsat/LS8_Buoy100m.csv") %>% 
   mutate(DATE_ACQUIRED = ymd(DATE_ACQUIRED)) %>% 
   rename('Aerosol' = SR_B1,
          'Blue' = SR_B2,
@@ -46,7 +41,6 @@ ls8 = read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", id)) 
          'Thermal' = ST_B10) %>% 
   filter(Aerosol>0,Blue>0,Green>0,Red>0,NIR>0,SWIR1>0,SWIR2>0) %>% 
   filter(pixelCount == 32)
-rm(id)
 
 band_ts <- ls8 %>% 
   pivot_longer(cols=2:9,names_to='band',values_to='value')
@@ -107,3 +101,4 @@ ggplot(aes(avg_turbidity,value))+
   geom_point()+
   facet_wrap(~ratio,scales='free')+
   geom_smooth(method='lm')
+
