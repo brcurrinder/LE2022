@@ -89,6 +89,8 @@ ggplot(band_ts,aes(DATE_ACQUIRED,value))+
 # Kab1 1.67 − 3.94*ln(B) + 3.78*ln(G)
 # Kab2 6.92274 − 5.7581*(ln(A)/ln(G))
 
+## calculate algorithms
+
 ls8_algs = ls8 %>% 
   mutate(SABI = (NIR-Red)/(Blue+Green),
          KIVU = (Blue-Red)/Green,
@@ -115,15 +117,15 @@ ls8_algs = ls8 %>%
 
 # combine data ------------------------------------------------------------
 
+# select relevant measurements from the buoy
 buoy_sub = buoy %>% 
   select(sampledate, avg_air_temp, avg_chlor_rfu, avg_phyco_rfu, 
          avg_do_wtemp, avg_pco2_ppm, avg_fdom, avg_turbidity)
 
 
-# chl-a -------------------------------------------------------------------
+# try predicting chl-a -------------------------------------------------------------------
 
-
-# check out different combinations against chlorophyll
+# join chla data with algorithm and band values
 chl_LS <- merge(x = buoy_sub[,c(1,3)], y = ls8_algs,
                   by.x = 'sampledate', by.y = 'DATE_ACQUIRED',
                   all.x = F, all.y = T) %>% 
@@ -132,26 +134,67 @@ chl_LS <- merge(x = buoy_sub[,c(1,3)], y = ls8_algs,
   # filter(avg_chlor_rfu < 1000) %>%
   mutate(log_chl = log(avg_chlor_rfu),
          sqrt_chl = sqrt(avg_chlor_rfu),
+         #scale_chl = scale(avg_chlor_rfu),
          .after = avg_chlor_rfu)
 
+# plot correlations
 corrplot(cor(chl_LS[,-1],use='pairwise'),type='lower', tl.cex = 0.9, tl.col = "black", diag = F)
 
 cors <- cor(chl_LS[,-1],use='pairwise')[,1:3]
+
+
+#view subset
 corrplot(t(cors), type = "upper", diag = F, tl.col = "black", cl.pos = "b", cl.ratio = 1)
 
-# try ratio regressions ---------------------------------------------------
-avg_cors = tibble("cor_value" = abs(cors[-c(1:3),1]), "name" = names(cors[-c(1:3),1])) %>% 
+## it seems not to matter what transformation of the chlorophyll values we use
+
+# try regressions on most relevant ratios ---------------------------------------------------
+avg_cors = cors %>% 
+  as_tibble(rownames = NA) %>% 
+  rownames_to_column() %>% 
+  select(rowname, cor_value = avg_chlor_rfu) %>% 
+  mutate(cor_value = abs(cor_value)) %>% 
   filter(cor_value > 0.15)
 
-chl_LS = chl_LS %>% 
-  select(-sqrt_chl, -log_chl) %>% 
+chl_LS2 = chl_LS %>% 
+  select(-sqrt_chl) %>% 
   pivot_longer(Aerosol:OC4) %>% 
-  filter(name %in% avg_cors$name) %>% 
+  filter(name %in% avg_cors$rowname) %>% 
   pivot_wider(names_from = name, values_from = value)
 
-chl_lm = lm(avg_chlor_rfu ~ ., data = chl_LS)
+#chl_lm1 = step(lm(log_chl ~.-avg_chlor_rfu -sqrt_chl -sampledate, data = chl_LS))
+
+chl_lm = lm(log_chl ~ .-avg_chlor_rfu -sampledate, data = chl_LS2)
 summary(chl_lm)
 sub_lm = step(chl_lm)
 summary(sub_lm)
+plot(sub_lm)
+#SABI, NDVI, G_R.N, chla_nasa
+corrplot(cor(chl_LS2[,-1], use = 'pairwise'), type = "upper", method = "ellipse", 
+         number.cex = 0.8, diag = F)
 
-corrplot(cor(chl_LS[,-1], use = 'pairwise'), type = "upper", diag = F)
+#var part
+library(vegan)
+
+#set row names
+chl_LS2 = as.data.frame(chl_LS2)
+rownames(chl_LS2) = chl_LS2$sampledate
+labels = chl_LS2$sampledate
+
+chl.dat = as.data.frame(chl_LS2[,3])
+rownames(chl.dat) = labels
+names(chl.dat) = "log_chl"
+ls.dat = chl_LS2[,4:12]
+
+edaPlot = rda(chl.dat ~., data = ls.dat)
+plot(edaPlot, choices=c(1,2), type="text")
+
+out = varpart(chl.dat, ~ SABI, ~ NDVI, ~ G_R.N, ~ chla_nasa, data = ls.dat)
+out$part$indfract
+out$part$indfract$Adj.R.square = out$part$indfract$Adj.R.square * 100 # plot as percentages
+plot(out, bg = c("hotpink", "skyblue", "limegreen", "orange2"), digits = 0, Xnames = c("SABI", "NDVI", "G_R.N", "chla_nasa"))
+
+
+chl_lm2 = lm(avg_chlor_rfu ~ SABI+G_R.N, data = chl_LS2)
+summary(chl_lm2)
+plot(chl_lm2, 2)
