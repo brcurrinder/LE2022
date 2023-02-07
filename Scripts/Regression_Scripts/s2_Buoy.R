@@ -4,7 +4,7 @@ library(corrplot)
 library(SARP.compo)
 library(broom)
 
-buoy <- read.csv('C:/Users/maxgl/Documents/RPI/GLEON/LakeExpedition/MetabolismData/mendota_buoy/daily_buoy.csv') %>% 
+buoy <- read.csv('C:/Users/ssharp/Box/UCD EDL/GLEON LE2022/R/LE2022/Data/Buoy/daily_buoy.csv') %>% 
   mutate(sampledate = ymd(sampledate)) %>% 
   filter(flag_avg_air_temp!='C'&flag_avg_rel_hum!='C'&flag_avg_wind_speed!='C'&flag_avg_wind_dir!='C'&flag_avg_chlor_rfu!='C'&flag_avg_phyco_rfu!='C'&flag_avg_par!='C'&flag_avg_par_below!='C'&flag_avg_do_wtemp!='C'&flag_avg_do_sat!='C'&flag_avg_do_raw!='C'&flag_avg_pco2_ppm!='C'&flag_avg_ph!='C'&flag_avg_fdom!='C'&flag_avg_turbidity!='C'&flag_avg_spec_cond!='C') %>% 
   select(-contains('flag'),-year4)
@@ -16,7 +16,7 @@ ggplot(buoy_long,aes(sampledate,value))+
   geom_point()+
   facet_wrap(~variable,scales='free')
 
-s2 <- read.csv('C:/Users/maxgl/Documents/RPI/GLEON/LakeExpedition/rs_Data/S2_FullLake.csv') %>% 
+s2 <- read.csv('C:/Users/ssharp/Box/UCD EDL/GLEON LE2022/R/LE2022/Data/Sentinel2/S2_FullLake.csv') %>% 
   mutate(Date = substr(DATATAKE_IDENTIFIER, 6, 13),
          Year = substr(Date,0,4),
          Month = substr(Date,5,6),
