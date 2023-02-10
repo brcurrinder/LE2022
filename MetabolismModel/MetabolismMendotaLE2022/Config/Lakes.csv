@@ -1,0 +1,34 @@
+Variable,Description,Notes,Units,1,2,3,4,5,6
+LakeName,lake name,Easy,none,Sunapee,Mendota_1980_Present,Mendota_2010_Present_Lower_P,Mendota_1980_Present_Oligotrophic,Mendota_zero_Pload,Sunapee
+Latitude,latitude,MorphoGeo,Degrees,43,43.1,43.1,43.1,43.1,43
+Longitude,longitude,MorphoGeo,Degrees,-72,-89.7,-89.7,-89.7,-89.7,-72
+Elevation,elevation,MorphoGeo,m,333,260,260,260,260,333
+Area,lake area,MorphoGeo,m2,16730000,39610000,39610000,39610000,39610000,16730000
+Zmean,mean depth,MorphoGeo,m,11.4,12.8,12.8,12.8,12.8,12.8
+Zmax,maximum depth,MorphoGeo,m,43.3,25,25,25,25,25
+Albedo,lake surface reflectance,Meteorological,Proportion,0.3,0.3,0.3,0.3,0.3,0.3
+WindSpeed,mean wind U10,Wind,m/s,3,2,2,2,2,3
+RT,hydrologic residence time,Hydro,d,1095,1643,1643,1643,1643,1095
+DOCRinit,initial value,OCLake,g/m3,1.782,5.8,5.8,3,4.5,1.782
+DOCLinit,initial value,OCLake,g/m3,0.034,0.192,0.192,0.192,0.192,0.034
+POCRinit,initial value,OCLake,g/m3,0.01,0.032,0.032,0.032,0.032,0.01
+POCLinit,initial value,OCLake,g/m3,0.007,0.037,0.037,0.037,0.037,0.007
+OCLoad,total annual load,OCLoad,g/m2/y,20,38,38,25,25,20
+DOCRinflow,proportion of total load,OCLoad,unitless,0.5,0.7,0.7,0.7,0.7,0.5
+DOCLinflow,concentration in inflow,OCLoad,unitless,0.05,0.05,0.05,0.05,0.05,0.05
+POCLinflow,concentration in inflow,OCLoad,unitless,0.05,0.05,0.05,0.05,0.05,0.05
+POCRinflow,concentration in inflow,OCLoad,unitless,0.4,0.2,0.2,0.2,0.2,0.4
+SedAvailOC,Available OC in sediments,Sediment,mgC/gSed,39.9,40,50,20,15,39.9
+SedAvailOCBurial,Available OC at burial depth,Sediment,mgC/gSed,100,100,100,100,100,100
+SedPOCRinitProp,Initial proportion of sed that is POCR,Sediment,unitless,0.936,0.488,0.488,0.9,0.9,0.936
+SedPOCLinitProp,Initial proportion of sed that is POCL,Sediment,unitless,0.064,0.512,0.512,0.1,0.1,0.064
+Pinit,total phosphorus,PLake,g/m3,0.01,0.101,0.101,0.004,0.004,0.01
+PLoad,total annual P load,PLoad,g/m2LA/y,0.12,1.2,1.2,0.15,0,0.12
+PLoadAsSed,proportion of load as sediment,PLoad,unitless,0.25,0.33,0.33,0.33,0.33,0.25
+SedAvailPinit,Available P per unit of sediment,Sediment,mgP/gSed,0.597,1.2,1.3,1,0.19,0.597
+SedAvailPBurial,Available P at burial depth,Sediment,mgP/gSed,1,1,1,1,1,1
+SedBoundP,BoundP,Sediment,mgP/gSed,0.2,1,1,1,1,0.2
+ActiveSedDepth,Depth of active sediments,Sediment,m,0.1,0.1,0.1,0.1,0.1,0.1
+SoilDeposition,Soil (wet) deposited in lake bottom sediment area,Sediment,mm/y,0.38,1.5,1.5,0.5,0.5,0.38
+SedBulkDensity,Bulk density dry,Sediment,g/m3,1000000,1000000,1000000,1000000,1000000,1000000
+SedAreaProp,Area of sediments as proportion of lake area,Sediment,Proportion,0.4,0.5,0.5,0.5,0.5,0.4
