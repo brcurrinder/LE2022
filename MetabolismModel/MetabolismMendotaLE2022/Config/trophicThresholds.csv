@@ -1,0 +1,11 @@
+Variable,OligotrophicUpper,MesotrophicUpper
+Chl,2.6,7.3
+TP,0.012,0.024
+Secchi,4,2
+AnoxicDays,0,10
+EpiPOC,0.2,0.6
+Chl_old,2.6,7.3
+TP_old,0.002,0.015
+Secchi_old,4,2
+AnoxicDays_old,10,20
+EpiPOC_old,0.2,0.6

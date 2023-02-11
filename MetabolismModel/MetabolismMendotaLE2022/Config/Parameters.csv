@@ -1,0 +1,35 @@
+Parameter,Description,Units,1,2,3,4
+SetName,Name of parameter set,none,Sunapee,Mendota_1980_Present,Mendota_2010_Present,MendotaOligo
+CP,gC per unit of P and I,gC/gP/m3/I,0.01,0.2,0.2,0.2
+GPP2POC,Proportion of GPP that goes to POCL,Proportion,0.7,0.7,0.7,0.7
+GPPTheta,Arrhenius,Unitless,1.2,1.1,1.1,1.1
+DOmaxProp,"For low DO scaling, which ranges from 0 to this",Unitless,1,1,1,1
+kDO,Half saturation coefficient for DO scaling,g/m3,0.1,0.5,0.5,0.5
+mmDOmin,Minimum mmDO scaler,unitless,0.01,0.1,0.1,0.1
+TPcSed,P sedimentation decay,m/d,0.015,0.4,0.4,0.4
+TPcRecycle,P recycling decay,1/d,0.00004,0.0025,0.0017,0.0025
+TPkRecycle,P recycling,mm/d,0.001,0.01,0.01,0.01
+TPcRelease,P release,1/d,0.00011,0.0012,0.00084,0.0012
+TPcRebind,P rebind,1/d,0.05,0.1,0.1,0.1
+TPb,Second coefficient in recycling,g/m2/d,22.9,22.9,22.9,22.9
+TPa,First coefficient in recycling,g/m2/d,-4.3,-4.3,-4.3,-4.3
+TPRecyclingTheta,Arrhenius,None,1.06,1.1,1.1,1.1
+TPSedimentationTheta,Arrhenius,None,1.1,1.2,1.2,1.2
+TPSedimentationBaseT,Base temperature,C,20,20,20,20
+TPRecyclingBaseT,Base temperature,C,20,20,20,20
+RDOCR,Respiration,1/d,0.001,0.001,0.001,0.001
+RDOCL,Respiration,1/d,0.15,0.1,0.1,0.1
+RPOCR,Respiration,1/d,0.005,0.0005,0.0005,0.0005
+RPOCL,Respiration,1/d,0.15,0.15,0.05,0.15
+RPOCRSed,Respiration sediments,1/d,0.00001,0.000001,0.000001,0.000001
+RPOCLSed,Respiration sediments,1/d,0.001,0.0002,0.0002,0.0002
+Tbase,Base T for respiration,C,20,20,20,20
+RTheta,Theta respiration,None,1.08,1.08,1.08,1.08
+POCLSettling,Settling decay,m/d,0.15,0.5,0.5,0.5
+POCRSettling,Settling decay,m/d,0.2,1,1,1
+LECwater,Light extinction coef,Notsure,0.125,0.125,0.125,0.125
+LECPOCL,Light extinction coef,Notsure,0.5,1,1,1
+LECPOCR,Light extinction coef,Notsure,0.1,0.1,0.1,0.1
+LECDOCR,Light extinction coef,Notsure,0.02,0.02,0.02,0.02
+LECDOCL,Light extinction coef,Notsure,0.02,0.02,0.02,0.02
+LEC2Secchi,Convert LEC to Secchi,Notsure,1.7,1.7,1.7,1.7
