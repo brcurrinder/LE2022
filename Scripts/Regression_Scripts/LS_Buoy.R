@@ -54,6 +54,12 @@ combined <- merge(x = buoy, y = ls8,
                   by.x = 'sampledate', by.y = 'DATE_ACQUIRED',
                   all.x = F, all.y = T)
 
+#seasonal distribution of available data
+combined %>%
+  filter(!is.na(avg_chlor_rfu)) %>%
+  ggplot()+
+  geom_histogram(aes(x=month(sampledate)))
+
 band_combos <- combined %>% 
   select(sampledate,18:25)
 
@@ -73,6 +79,22 @@ corrplot(cor(ar_merge[,-1],use='pairwise'),type='lower')
 cors <- cor(ar_merge[,-1],use='pairwise')
 
 #Chl--------------------------------
+#make corrplot for chl-a
+chlcors = cor(ar_merge[,c(6,18:83)], use = 'pairwise')
+corrplot(chlcors, type = 'lower', tl.cex = 0.7)
+
+as_tibble(chlcors, rownames = NA) %>% 
+  rownames_to_column() %>% 
+  select(1:2) %>% 
+  mutate(abscor = abs(avg_chlor_rfu)) %>% 
+  arrange(-abscor) %>% 
+  head(10)
+as_tibble(chlcors, rownames = NA) %>% 
+  rownames_to_column() %>% 
+  select(1:2) %>% 
+  mutate(abscor = abs(avg_chlor_rfu)) %>% 
+  arrange(-abscor) %>% 
+  head(10)
 
 ggplot(allratioreg%>% filter(!is.na(avg_chlor_rfu)),aes(avg_chlor_rfu,value))+
   geom_point()+

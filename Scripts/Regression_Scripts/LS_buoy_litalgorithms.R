@@ -22,14 +22,35 @@ buoy_long = buoy %>%
   select(-var_flag, -flag)
 
 #visualize buoy data
-ggplot(na.omit(buoy_long),aes(sampledate,avg))+
+
+ggplot(na.omit(buoy_long), aes(sampledate,avg))+
   geom_point()+
   facet_wrap(~variable,scales='free')
 
+
+buoy_long %>% 
+  filter(variable == "chlor_rfu") %>% 
+  na.omit() %>% 
+  mutate(indic = case_when(year(sampledate) < 2008 ~ "Set 1",
+                           year(sampledate) > 2018 ~ "Set 3",
+                           T ~ "Set 2")) %>% 
+ggplot(aes(sampledate,avg))+
+  geom_point()+
+ # facet_wrap(~indic,scales='free')+
+  labs(y = "avg_chlor_rfu")
+
 #recreate wide table
 buoy = buoy_long %>% 
-  pivot_wider(names_from = variable, values_from = avg, names_prefix = "avg_")
+  pivot_wider(names_from = variable, values_from = avg, names_prefix = "avg_") %>% 
+#upate chl and phyco data post 2018
+  mutate(avg_chlor_rfu = case_when(year(sampledate) > 2018 ~ 1000*avg_chlor_rfu,
+                               T ~ avg_chlor_rfu),
+         avg_phyco_rfu = case_when(year(sampledate) > 2018 ~ 1000*avg_phyco_rfu,
+                               T ~ avg_phyco_rfu))
 
+
+ggplot(buoy)+
+  geom_point(aes(x = sampledate, y = avg_chlor_rfu))
 # read LS data ------------------------------------------------------------
 
 ls8 = read.csv("Data/Landsat/LS8_Buoy100m.csv") %>% 
@@ -169,7 +190,7 @@ summary(chl_lm)
 sub_lm = step(chl_lm)
 summary(sub_lm)
 plot(sub_lm)
-#SABI, NDVI, G_R.N, chla_nasa
+#SABI, NDVI, G.BGR, N_R, R_B.R_N, chla_nasa
 corrplot(cor(chl_LS2[,-1], use = 'pairwise'), type = "upper", method = "ellipse", 
          number.cex = 0.8, diag = F)
 
@@ -189,9 +210,9 @@ ls.dat = chl_LS2[,4:12]
 edaPlot = rda(chl.dat ~., data = ls.dat)
 plot(edaPlot, choices=c(1,2), type="text")
 
-out = varpart(chl.dat, ~ SABI, ~ NDVI, ~ G_R.N, ~ chla_nasa, data = ls.dat)
+out = varpart(chl.dat, ~ SABI, ~ G.BGR, ~ N_R, ~ chla_nasa, data = ls.dat)
 out$part$indfract
-out$part$indfract$Adj.R.square = out$part$indfract$Adj.R.square * 100 # plot as percentages
+#out$part$indfract$Adj.R.square = out$part$indfract$Adj.R.square * 100 # plot as percentages
 plot(out, bg = c("hotpink", "skyblue", "limegreen", "orange2"), digits = 0, Xnames = c("SABI", "NDVI", "G_R.N", "chla_nasa"))
 
 
