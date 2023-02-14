@@ -4,19 +4,33 @@ library(corrplot)
 library(SARP.compo)
 library(broom)
 
-buoy <- read.csv('C:/Users/ssharp/Box/UCD EDL/GLEON LE2022/R/LE2022/Data/Buoy/daily_buoy.csv') %>% 
+
+#import buoy data
+buoy = read.csv("Data/Buoy/daily_buoy.csv") %>%  
   mutate(sampledate = ymd(sampledate)) %>% 
-  filter(flag_avg_air_temp!='C'&flag_avg_rel_hum!='C'&flag_avg_wind_speed!='C'&flag_avg_wind_dir!='C'&flag_avg_chlor_rfu!='C'&flag_avg_phyco_rfu!='C'&flag_avg_par!='C'&flag_avg_par_below!='C'&flag_avg_do_wtemp!='C'&flag_avg_do_sat!='C'&flag_avg_do_raw!='C'&flag_avg_pco2_ppm!='C'&flag_avg_ph!='C'&flag_avg_fdom!='C'&flag_avg_turbidity!='C'&flag_avg_spec_cond!='C') %>% 
-  select(-contains('flag'),-year4)
+  select(-year4)
 
-buoy_long <- buoy %>% 
-  pivot_longer(cols=2:17,names_to = 'variable',values_to = 'value')
+# make sure data values are NA when flagged, preserving as many points as possible
+buoy_long = buoy %>% 
+  pivot_longer(cols = starts_with("avg"), names_prefix = "avg_", names_to = "variable", values_to = "avg") %>% 
+  pivot_longer(cols = starts_with("flag"), names_prefix = "flag_avg_", names_to = "var_flag", values_to = "flag") %>% 
+  filter(variable == var_flag) %>% 
+  mutate(avg = case_when(flag != "" ~ as.numeric(NA),
+                         T ~ avg)) %>% 
+  select(-var_flag, -flag)
 
-ggplot(buoy_long,aes(sampledate,value))+
+#visualize buoy data
+ggplot(na.omit(buoy_long),aes(sampledate,avg))+
   geom_point()+
   facet_wrap(~variable,scales='free')
 
-s2 <- read.csv('C:/Users/ssharp/Box/UCD EDL/GLEON LE2022/R/LE2022/Data/Sentinel2/S2_FullLake.csv') %>% 
+#recreate wide table
+buoy = buoy_long %>% 
+  pivot_wider(names_from = variable, values_from = avg, names_prefix = "avg_")
+
+#import sentinel data
+
+s2 <- read.csv("Data/Sentinel2/S2_FullLake.csv") %>% 
   mutate(Date = substr(DATATAKE_IDENTIFIER, 6, 13),
          Year = substr(Date,0,4),
          Month = substr(Date,5,6),
@@ -51,7 +65,7 @@ ggplot(band_ts,aes(Date,value))+
 #   geom_point()+
 #   geom_line()
 # 
-# ggplot(buoy %>% 
+# ggplot(buoy %>%
 #          filter(sampledate > as.Date('2019-01-01')),aes(sampledate,avg_phyco_rfu))+
 #   geom_point()+
 #   geom_line()
@@ -59,6 +73,12 @@ ggplot(band_ts,aes(Date,value))+
 combined <- merge(x = buoy, y = s2,
                   by.x = 'sampledate', by.y = 'Date',
                   all.x = F, all.y = T)
+
+#seasonal distribution of available data
+combined %>%
+  filter(!is.na(avg_chlor_rfu)) %>%
+  ggplot()+
+  geom_histogram(aes(x=month(sampledate)))
 
 band_combos <- combined %>% 
   select(sampledate,20:30)
@@ -82,6 +102,19 @@ cors <- cor(ar_merge[,-1],use='pairwise')
 
 #Chl--------------------------------
 
+#make corrplot for chl-a
+chlcors = cor(ar_merge[,c(6,18:53)], use = 'pairwise')
+corrplot(chlcors, type = 'lower', tl.cex = 0.7)
+
+as_tibble(chlcors, rownames = NA) %>% 
+  rownames_to_column() %>% 
+  select(1:2) %>% 
+  mutate(abscor = abs(avg_chlor_rfu)) %>% 
+  arrange(-abscor) %>% 
+  head(10) %>% 
+  knitr::kable()
+
+#plot regressions
 ggplot(allratioreg%>% filter(!is.na(avg_chlor_rfu)),aes(avg_chlor_rfu,value))+
   geom_point()+
   facet_wrap(~ratio,scales='free')+
