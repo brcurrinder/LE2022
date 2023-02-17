@@ -23,6 +23,7 @@ sub = surface %>%
   slice(index) %>% 
   select(id, rhos_401:rhos_1000) 
 
+
 meanline = sub %>% 
   summarise(across(.cols = -id, .fns = mean, na.rm = T))%>% 
   pivot_longer(rhos_401:rhos_1000, names_prefix = "rhos_", 
@@ -37,5 +38,4 @@ sub %>%
   guides(color = "none")
   lims(x=c(500,700))
   
-
 # https://opg.optica.org/oe/fulltext.cfm?uri=oe-22-23-28058&id=303697&ibsearch=false
