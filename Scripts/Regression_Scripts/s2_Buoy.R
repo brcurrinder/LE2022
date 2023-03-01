@@ -2,35 +2,23 @@ library(tidyverse)
 library(lubridate)
 library(corrplot)
 library(SARP.compo)
-library(broom)
-
 
 #import buoy data
-buoy = read.csv("Data/Buoy/daily_buoy.csv") %>%  
+buoy <- read.csv("Data/Buoy/daily_buoy.csv") %>%  
   mutate(sampledate = ymd(sampledate)) %>% 
   select(-year4)
 
-# make sure data values are NA when flagged, preserving as many points as possible
-buoy_long = buoy %>% 
-  pivot_longer(cols = starts_with("avg"), names_prefix = "avg_", names_to = "variable", values_to = "avg") %>% 
-  pivot_longer(cols = starts_with("flag"), names_prefix = "flag_avg_", names_to = "var_flag", values_to = "flag") %>% 
-  filter(variable == var_flag) %>% 
-  mutate(avg = case_when(flag != "" ~ as.numeric(NA),
-                         T ~ avg)) %>% 
-  select(-var_flag, -flag)
+#visualize buoy databuoy_long <- buoy %>% 
+buoy_long <- buoy %>% 
+  pivot_longer(cols=2:19,names_to = 'variable',values_to = 'value')
 
-#visualize buoy data
-ggplot(na.omit(buoy_long),aes(sampledate,avg))+
+ggplot(na.omit(buoy_long),aes(sampledate,value))+
   geom_point()+
   facet_wrap(~variable,scales='free')
 
-#recreate wide table
-buoy = buoy_long %>% 
-  pivot_wider(names_from = variable, values_from = avg, names_prefix = "avg_")
-
 #import sentinel data
 
-s2 <- read.csv("Data/Sentinel2/S2_FullLake.csv") %>% 
+s2 <- read.csv("Data/Sentinel2/S2_Buoy100mMean.csv") %>% 
   mutate(Date = substr(DATATAKE_IDENTIFIER, 6, 13),
          Year = substr(Date,0,4),
          Month = substr(Date,5,6),
@@ -50,7 +38,7 @@ s2 <- read.csv("Data/Sentinel2/S2_FullLake.csv") %>%
          'SWIR1' = B11,
          'SWIR2' = B12) %>% 
   filter(Aerosol>0,Blue>0,Green>0,Red>0,NIR>0,SWIR1>0,SWIR2>0) %>% 
-  filter(pixelCount >300000) %>% 
+  filter(pixelCount >300) %>% 
   filter(MGRS_TILE == '15TYH')
 
 band_ts <- s2 %>% 
@@ -61,15 +49,7 @@ ggplot(band_ts,aes(Date,value))+
   geom_line()+
   facet_wrap(~band,scales='free')
 
-# ggplot(s2,aes(Date,Blue/Green))+
-#   geom_point()+
-#   geom_line()
-# 
-# ggplot(buoy %>%
-#          filter(sampledate > as.Date('2019-01-01')),aes(sampledate,avg_phyco_rfu))+
-#   geom_point()+
-#   geom_line()
-
+#merge datasets
 combined <- merge(x = buoy, y = s2,
                   by.x = 'sampledate', by.y = 'Date',
                   all.x = F, all.y = T)
@@ -80,8 +60,9 @@ combined %>%
   ggplot()+
   geom_histogram(aes(x=month(sampledate)))
 
+#create all unique band ratios
 band_combos <- combined %>% 
-  select(sampledate,20:30)
+  select(sampledate,22:32)
 
 names <- c('Aerosol','Blue','Green','Red','RedEdge1','RedEdge2','RedEdge3','NIR','RedEdge4','SWIR1','SWIR2')
 
@@ -91,13 +72,23 @@ ar_merge <- merge(x = buoy, y = all_ratios,
                   by.x = 'sampledate', by.y = 'sampledate',
                   all.x = F, all.y = T)
 
-allratioreg <- ar_merge %>% 
-  pivot_longer(cols = 18:83, names_to = 'ratio', values_to = 'value')
+#filter out days with ice cover
+ice <- read.csv('Data/IceCover/cleaned_ice_cover.csv') %>% 
+  select(-X) %>% 
+  mutate(Date = ymd(Date))
+
+ice_filt <- unique(merge(x = ar_merge, y = ice,
+                  by.x = 'sampledate', by.y = 'Date',
+                  all.x = T, all.y = F)) %>% 
+  filter(Ice == 'No')
+#removes 37 rows
+
+allratioreg <- ice_filt %>% 
+  pivot_longer(cols = 20:85, names_to = 'ratio', values_to = 'value')
 
 corrplot(cor(ar_merge[,-1],use='pairwise'),type='lower')
 
 cors <- cor(ar_merge[,-1],use='pairwise')
-
 
 
 #Chl--------------------------------
@@ -115,32 +106,91 @@ as_tibble(chlcors, rownames = NA) %>%
   knitr::kable()
 
 #plot regressions
-ggplot(allratioreg%>% filter(!is.na(avg_chlor_rfu)),aes(avg_chlor_rfu,value))+
+
+#unscaled
+ggplot(allratioreg%>% filter(!is.na(avg_chlor_rfu)),aes(log(avg_chlor_rfu),value))+
   geom_point()+
   facet_wrap(~ratio,scales='free')+
   geom_smooth(method='lm')
 
+#scaled
+# ggplot(allratioreg%>% filter(!is.na(scaled_chlor_rfu)),aes(scaled_chlor_rfu,value))+
+#   geom_point()+
+#   facet_wrap(~ratio,scales='free')+
+#   geom_smooth(method='lm')
+
+#run linear regressions
+chl_reg <- ice_filt %>% 
+  select(avg_chlor_rfu,20:85) %>% 
+  filter(!is.na(avg_chlor_rfu))
+
+bands <- colnames(chl_reg)
+chl_lm <- data.frame(band = rep(NA,66),
+                   r2 = rep(NA,66),
+                   p = rep(NA,66),
+                   slope = rep(NA,66),
+                   int = rep(NA,66))
+
+for(k in 2:length(bands)){
+  df = chl_reg %>% 
+    select(avg_chlor_rfu,bands[k])
+  
+  chl_lm$band[k-1] = bands[k]
+  chl_lm$r2[k-1] = summary(lm(avg_chlor_rfu~.,data=df))$adj.r.squared
+  chl_lm$p[k-1] = summary(lm(avg_chlor_rfu~.,data=df))$coefficients[2,4]
+  chl_lm$slope[k-1] = summary(lm(avg_chlor_rfu~.,data=df))$coefficients[2]
+  chl_lm$int[k-1] = summary(lm(avg_chlor_rfu~.,data=df))$coefficients[1]
+}
+
+sig_chl_lm <- chl_lm %>% 
+  filter(p <= 0.09)
+
+#chl does not seem to have a meaningful relationship with any band ratios
+#greatest R2 is 0.13
+
 #Phyco------------------------------
 
+#plot regressions
+
+#unscaled
 ggplot(allratioreg%>% filter(!is.na(avg_phyco_rfu)),aes(avg_phyco_rfu,value))+
   geom_point()+
   facet_wrap(~ratio,scales='free')+
   geom_smooth(method='lm')
 
-phyco_reg <- ar_merge %>% 
-  select(avg_phyco_rfu,18:83) %>% 
+#scaled
+# ggplot(allratioreg%>% filter(!is.na(scaled_phyco_rfu)),aes(scaled_phyco_rfu,value))+
+#   geom_point()+
+#   facet_wrap(~ratio,scales='free')+
+#   geom_smooth(method='lm')
+
+#run linear regressions
+phyco_reg <- ice_filt %>% 
+  select(avg_phyco_rfu,20:85) %>% 
   filter(!is.na(avg_phyco_rfu))
 
-summary(lm(avg_phyco_rfu~Red.RedEdge1.r,data=phyco_reg))
+phyco_lm <- data.frame(band = rep(NA,66),
+                     r2 = rep(NA,66),
+                     p = rep(NA,66),
+                     slope = rep(NA,66),
+                     int = rep(NA,66))
 
-ind_lm_ <- phyco_reg %>% 
-  pivot_longer(cols = 2:67, names_to = 'band', values_to = 'value') %>% 
-  group_by(band) %>% 
-  nest() %>% 
-  mutate(trend = map(data,~lm(avg_phyco_rfu~value,data=.x))) %>% 
-  mutate(slope = map(trend,~tidy(.x))) %>% 
-  unnest(slope)
+for(k in 2:length(bands)){
+  df = phyco_reg %>% 
+    select(avg_phyco_rfu,bands[k])
+  
+  phyco_lm$band[k-1] = bands[k]
+  phyco_lm$r2[k-1] = summary(lm(avg_phyco_rfu~.,data=df))$adj.r.squared
+  phyco_lm$p[k-1] = summary(lm(avg_phyco_rfu~.,data=df))$coefficients[2,4]
+  phyco_lm$slope[k-1] = summary(lm(avg_phyco_rfu~.,data=df))$coefficients[2]
+  phyco_lm$int[k-1] = summary(lm(avg_phyco_rfu~.,data=df))$coefficients[1]
+}
 
+sig_phyco_lm <- phyco_lm %>% 
+  filter(p <= 0.05)
+
+#the best predictor is red/red edge 1, also blue/green is solid, others are good too
+#greatest R2 is 0.45
 #fdom------------------------------
 
 
@@ -149,6 +199,32 @@ ggplot(allratioreg%>% filter(!is.na(avg_fdom)),aes(avg_fdom,value))+
   facet_wrap(~ratio,scales='free')+
   geom_smooth(method='lm')
 
+#run linear regressions
+fdom_reg <- ice_filt %>% 
+  select(avg_fdom,20:85) %>% 
+  filter(!is.na(avg_fdom))
+
+fdom_lm <- data.frame(band = rep(NA,66),
+                       r2 = rep(NA,66),
+                       p = rep(NA,66),
+                       slope = rep(NA,66),
+                       int = rep(NA,66))
+
+for(k in 2:length(bands)){
+  df = fdom_reg %>% 
+    select(avg_fdom,bands[k])
+  
+  fdom_lm$band[k-1] = bands[k]
+  fdom_lm$r2[k-1] = summary(lm(avg_fdom~.,data=df))$adj.r.squared
+  fdom_lm$p[k-1] = summary(lm(avg_fdom~.,data=df))$coefficients[2,4]
+  fdom_lm$slope[k-1] = summary(lm(avg_fdom~.,data=df))$coefficients[2]
+  fdom_lm$int[k-1] = summary(lm(avg_fdom~.,data=df))$coefficients[1]
+}
+
+sig_fdom_lm <- fdom_lm %>% 
+  filter(p <= 0.05)
+
+
 #turbidity------------------------------
 
 ggplot(allratioreg%>% filter(!is.na(avg_turbidity)),aes(avg_turbidity,value))+
@@ -156,3 +232,28 @@ ggplot(allratioreg%>% filter(!is.na(avg_turbidity)),aes(avg_turbidity,value))+
   facet_wrap(~ratio,scales='free')+
   geom_smooth(method='lm')
 
+#run linear regressions
+turb_reg <- ice_filt %>% 
+  select(avg_turbidity,20:85) %>% 
+  filter(!is.na(avg_turbidity))
+
+turb_lm <- data.frame(band = rep(NA,66),
+                      r2 = rep(NA,66),
+                      p = rep(NA,66),
+                      slope = rep(NA,66),
+                      int = rep(NA,66))
+
+for(k in 2:length(bands)){
+  df = turb_reg %>% 
+    select(avg_turbidity,bands[k])
+  
+  turb_lm$band[k-1] = bands[k]
+  turb_lm$r2[k-1] = summary(lm(avg_turbidity~.,data=df))$adj.r.squared
+  turb_lm$p[k-1] = summary(lm(avg_turbidity~.,data=df))$coefficients[2,4]
+  turb_lm$slope[k-1] = summary(lm(avg_turbidity~.,data=df))$coefficients[2]
+  turb_lm$int[k-1] = summary(lm(avg_turbidity~.,data=df))$coefficients[1]
+}
+
+sig_turb_lm <- turb_lm %>% 
+  filter(p <= 0.05)
+#very solid regressions
