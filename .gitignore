@@ -8,3 +8,4 @@ Data/DESIS/L2W_raw_from_SMCE
 Data/DESIS/L2W_destriped
 Data/DESIS/L2W_clipped_to_buoy
 Data/Buoy_100m_shp
+CO_ignore/*
