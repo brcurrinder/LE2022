@@ -11,7 +11,7 @@ library(tidyverse)
 library(lubridate)
 
 
-# Explore differences between sensors -------------------------------------
+# Explore differences between old and new sensors -------------------------------------
 
 # Load data
 mendota_buoy_sensors_v3 <- read_csv("Data/Buoy/mendota_buoy_sensors_v3.csv")
@@ -64,20 +64,37 @@ ggplot(daily_long)+
   geom_point(aes(x = sampledate, y = avg))+
   facet_wrap(~variable, scales = "free")
 
+#specifically look at chlor/phyco
+daily_long %>%  filter(variable %in% c("chlor_rfu", "phyco_rfu")) %>% 
+  ggplot()+
+  geom_point(aes(x = sampledate, y = avg, color = variable))+
+  facet_wrap(~year(sampledate), scales = "free")
+#ok - none of these look like outrageous outliers
+
 #recreate wide table
 daily_buoy = daily_long %>% 
   pivot_wider(names_from = variable, values_from = avg, names_prefix = "avg_") 
 
 #scaling chlor and phyco RFU values
 daily_buoy = daily_buoy %>%
-  left_join(daily_buoy %>% group_by(year4) %>% 
-              summarise(max_chlor = max(avg_chlor_rfu, na.rm = T),
-                        min_chlor = min(avg_chlor_rfu, na.rm = T),
-                        max_phyco = max(avg_phyco_rfu, na.rm = T),
-                        min_phyco = min(avg_phyco_rfu, na.rm = T))) %>% 
-  mutate(scaled_chlor_rfu = (avg_chlor_rfu- min_chlor)/max_chlor,
-         scaled_phyco_rfu = (avg_phyco_rfu - min_phyco)/max_phyco) %>% 
-  select(-c(max_chlor:min_phyco)) %>% 
+  left_join(daily_buoy %>% group_by(year4) %>%
+# new transformation: standard normal transform
+              summarize(mean_chlor = mean(avg_chlor_rfu, na.rm = T),
+                        mean_phyco = mean(avg_phyco_rfu, na.rm = T),
+                        sd_chlor = sd(avg_chlor_rfu, na.rm = T),
+                        sd_phyco = sd(avg_phyco_rfu, na.rm = T))) %>% 
+  mutate(scaled_chlor_rfu = (avg_chlor_rfu - mean_chlor)/sd_chlor,
+         scaled_phyco_rfu = (avg_phyco_rfu - mean_phyco)/sd_phyco) %>% 
+  select(-c(mean_chlor:sd_phyco)) %>% 
+# old transformation  
+
+  #             summarise(max_chlor = max(avg_chlor_rfu, na.rm = T),
+  #                       min_chlor = min(avg_chlor_rfu, na.rm = T),
+  #                       max_phyco = max(avg_phyco_rfu, na.rm = T),
+  #                       min_phyco = min(avg_phyco_rfu, na.rm = T))) %>% 
+  # mutate(scaled_chlor_rfu = (avg_chlor_rfu- min_chlor)/max_chlor,
+  #        scaled_phyco_rfu = (avg_phyco_rfu - min_phyco)/max_phyco) %>% 
+  # select(-c(max_chlor:min_phyco)) %>% 
   # create trimmed / sensor adjusted values
   mutate(avg_chlor_rfu = case_when(year(sampledate) > 2018 ~ avg_chlor_rfu*1000,
                                    year(sampledate) < 2008 ~ as.numeric(NA),
@@ -126,13 +143,22 @@ hourly_buoy = hourly_long %>%
 #scaling chlor and phyco RFU values
 hourly_buoy = hourly_buoy %>%
   left_join(hourly_buoy %>% group_by(year4) %>% 
-              summarise(max_chlor = max(avg_chlor_rfu, na.rm = T),
-                        min_chlor = min(avg_chlor_rfu, na.rm = T),
-                        max_phyco = max(avg_phyco_rfu, na.rm = T),
-                        min_phyco = min(avg_phyco_rfu, na.rm = T))) %>% 
-  mutate(scaled_chlor_rfu = (avg_chlor_rfu- min_chlor)/max_chlor,
-         scaled_phyco_rfu = (avg_phyco_rfu - min_phyco)/max_phyco) %>% 
-  select(-c(max_chlor:min_phyco)) %>% 
+# new transformation: standard normal transform
+              summarize(mean_chlor = mean(avg_chlor_rfu, na.rm = T),
+                        mean_phyco = mean(avg_phyco_rfu, na.rm = T),
+                        sd_chlor = sd(avg_chlor_rfu, na.rm = T),
+                        sd_phyco = sd(avg_phyco_rfu, na.rm = T))) %>% 
+  mutate(scaled_chlor_rfu = (avg_chlor_rfu - mean_chlor)/sd_chlor,
+         scaled_phyco_rfu = (avg_phyco_rfu - mean_phyco)/sd_phyco) %>% 
+  select(-c(mean_chlor:sd_phyco)) %>% 
+  # old transformation                
+  #             summarise(max_chlor = max(avg_chlor_rfu, na.rm = T),
+  #                       min_chlor = min(avg_chlor_rfu, na.rm = T),
+  #                       max_phyco = max(avg_phyco_rfu, na.rm = T),
+  #                       min_phyco = min(avg_phyco_rfu, na.rm = T))) %>% 
+  # mutate(scaled_chlor_rfu = (avg_chlor_rfu- min_chlor)/max_chlor,
+  #        scaled_phyco_rfu = (avg_phyco_rfu - min_phyco)/max_phyco) %>% 
+  # select(-c(max_chlor:min_phyco)) %>% 
   # create trimmed / sensor adjusted values
   mutate(avg_chlor_rfu = case_when(year(sampledate) > 2018 ~ avg_chlor_rfu*1000,
                                    year(sampledate) < 2008 ~ as.numeric(NA),
