@@ -93,7 +93,7 @@ all_groups %>%
 
 # Write .csv for time series figure
 all_groups <- all_groups %>%
-  select(-c(sampledate)) %>%
+  #select(-c(sampledate)) %>%
   rename("total_phytoplankton_biomass_conc_mgL" = "summed_biomass_conc")
 write.csv(all_groups, "Data/prelim_time_series_figure/total_phytoplankton_biomass_conc.csv", row.names = F, quote=T)
 
@@ -135,7 +135,8 @@ phyto_rel_cyanophyta %>%
 
 # Write .csv for time series figure
 phyto_rel_cyanophyta <- phyto_rel_cyanophyta %>%
-  select(-c(sampledate, division, biomass_conc, total_biomass_conc)) %>%
+  #select(-c(sampledate, division, biomass_conc, total_biomass_conc)) %>%
+  select(-c(division, biomass_conc, total_biomass_conc)) %>%
   rename("Cyanophyta_rel_biomass_conc_mgL" = "rel_biomass_conc")
 write.csv(phyto_rel_cyanophyta, "Data/prelim_time_series_figure/Cyanophyta_relative_biomass_conc.csv", row.names = F, quote=T)
 
