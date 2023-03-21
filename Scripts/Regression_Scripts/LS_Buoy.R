@@ -2,7 +2,6 @@ library(tidyverse)
 library(lubridate)
 library(corrplot)
 library(SARP.compo)
-library(broom)
 
 #import buoy data
 buoy = read.csv("Data/Buoy/daily_buoy.csv") %>%  
@@ -32,6 +31,7 @@ ggplot(band_ts,aes(DATE_ACQUIRED,value))+
   geom_line()+
   facet_wrap(~band,scales='free')
 
+#merge datasets
 combined <- merge(x = buoy, y = ls8,
                   by.x = 'sampledate', by.y = 'DATE_ACQUIRED',
                   all.x = F, all.y = T)
@@ -42,6 +42,7 @@ combined %>%
   ggplot()+
   geom_histogram(aes(x=month(sampledate)))
 
+#create all unique band ratios
 band_combos <- combined %>% 
   select(sampledate,20:27)
 
@@ -53,7 +54,18 @@ ar_merge <- merge(x = buoy, y = all_ratios,
                   by.x = 'sampledate', by.y = 'sampledate',
                   all.x = F, all.y = T)
 
-allratioreg <- ar_merge %>% 
+#filter out days with ice cover
+ice <- read.csv('Data/IceCover/cleaned_ice_cover.csv') %>% 
+  select(-X) %>% 
+  mutate(Date = ymd(Date))
+
+ice_filt <- unique(merge(x = ar_merge, y = ice,
+                         by.x = 'sampledate', by.y = 'Date',
+                         all.x = T, all.y = F)) %>% 
+  filter(Ice == 'No')
+#removes 14 rows
+
+allratioreg <- ice_filt %>% 
   pivot_longer(cols = 20:55, names_to = 'ratio', values_to = 'value')
 
 corrplot(cor(ar_merge[,-1],use='pairwise'),type='lower')
@@ -80,27 +92,86 @@ as_tibble(chlcors, rownames = NA) %>%
   arrange(-abs_scale_cor) %>% 
   head(10)
 
+#unscaled
 ggplot(allratioreg%>% filter(!is.na(avg_chlor_rfu)),aes(avg_chlor_rfu,value))+
   geom_point()+
   facet_wrap(~ratio,scales='free')+
   geom_smooth(method='lm')
 
+#scaled
 ggplot(allratioreg%>% filter(!is.na(scaled_chlor_rfu)),aes(scaled_chlor_rfu,value))+
   geom_point()+
   facet_wrap(~ratio,scales='free')+
   geom_smooth(method='lm')
 
+#run linear regressions
+chl_reg <- ice_filt %>% 
+  select(avg_chlor_rfu,20:55) %>% 
+  filter(!is.na(avg_chlor_rfu))
+
+bands <- colnames(chl_reg)
+chl_lm <- data.frame(band = rep(NA,37),
+                     r2 = rep(NA,37),
+                     p = rep(NA,37),
+                     slope = rep(NA,37),
+                     int = rep(NA,37))
+
+for(k in 2:length(bands)){
+  df = chl_reg %>% 
+    select(avg_chlor_rfu,bands[k])
+  
+  chl_lm$band[k-1] = bands[k]
+  chl_lm$r2[k-1] = summary(lm(avg_chlor_rfu~.,data=df))$adj.r.squared
+  chl_lm$p[k-1] = summary(lm(avg_chlor_rfu~.,data=df))$coefficients[2,4]
+  chl_lm$slope[k-1] = summary(lm(avg_chlor_rfu~.,data=df))$coefficients[2]
+  chl_lm$int[k-1] = summary(lm(avg_chlor_rfu~.,data=df))$coefficients[1]
+}
+
+sig_chl_lm <- chl_lm %>% 
+  filter(p <= 0.05)
+
+#chl does not seem to have a meaningful relationship with any band ratios
+
 #Phyco------------------------------
 
+#unscaled
 ggplot(allratioreg%>% filter(!is.na(avg_phyco_rfu)),aes(avg_phyco_rfu,value))+
   geom_point()+
   facet_wrap(~ratio,scales='free')+
   geom_smooth(method='lm')
 
+#scaled
 ggplot(allratioreg%>% filter(!is.na(scaled_phyco_rfu)),aes(scaled_phyco_rfu,value))+
   geom_point()+
   facet_wrap(~ratio,scales='free')+
   geom_smooth(method='lm')
+
+#run linear regressions
+phyco_reg <- ice_filt %>% 
+  select(avg_phyco_rfu,20:55) %>% 
+  filter(!is.na(avg_phyco_rfu))
+
+phyco_lm <- data.frame(band = rep(NA,37),
+                       r2 = rep(NA,37),
+                       p = rep(NA,37),
+                       slope = rep(NA,37),
+                       int = rep(NA,37))
+
+for(k in 2:length(bands)){
+  df = phyco_reg %>% 
+    select(avg_phyco_rfu,bands[k])
+  
+  phyco_lm$band[k-1] = bands[k]
+  phyco_lm$r2[k-1] = summary(lm(avg_phyco_rfu~.,data=df))$adj.r.squared
+  phyco_lm$p[k-1] = summary(lm(avg_phyco_rfu~.,data=df))$coefficients[2,4]
+  phyco_lm$slope[k-1] = summary(lm(avg_phyco_rfu~.,data=df))$coefficients[2]
+  phyco_lm$int[k-1] = summary(lm(avg_phyco_rfu~.,data=df))$coefficients[1]
+}
+
+sig_phyco_lm <- phyco_lm %>% 
+  filter(p <= 0.05)
+
+#not very good
 
 #fdom------------------------------
 
@@ -109,6 +180,33 @@ ggplot(allratioreg%>% filter(!is.na(avg_fdom)),aes(avg_fdom,value))+
   facet_wrap(~ratio,scales='free')+
   geom_smooth(method='lm')
 
+#run linear regressions
+fdom_reg <- ice_filt %>% 
+  select(avg_fdom,20:55) %>% 
+  filter(!is.na(avg_fdom))
+
+fdom_lm <- data.frame(band = rep(NA,37),
+                      r2 = rep(NA,37),
+                      p = rep(NA,37),
+                      slope = rep(NA,37),
+                      int = rep(NA,37))
+
+for(k in 2:length(bands)){
+  df = fdom_reg %>% 
+    select(avg_fdom,bands[k])
+  
+  fdom_lm$band[k-1] = bands[k]
+  fdom_lm$r2[k-1] = summary(lm(avg_fdom~.,data=df))$adj.r.squared
+  fdom_lm$p[k-1] = summary(lm(avg_fdom~.,data=df))$coefficients[2,4]
+  fdom_lm$slope[k-1] = summary(lm(avg_fdom~.,data=df))$coefficients[2]
+  fdom_lm$int[k-1] = summary(lm(avg_fdom~.,data=df))$coefficients[1]
+}
+
+sig_fdom_lm <- fdom_lm %>% 
+  filter(p <= 0.05)
+
+#also not good
+
 #turbidity------------------------------
 allratioreg%>% filter(!is.na(avg_turbidity)) %>% 
   filter(avg_turbidity < 7) %>% #remove 1 outlier?
@@ -116,4 +214,37 @@ ggplot(aes(avg_turbidity,value))+
   geom_point()+
   facet_wrap(~ratio,scales='free')+
   geom_smooth(method='lm')
+
+ggplot(allratioreg%>% filter(!is.na(avg_turbidity)),aes(avg_turbidity,value))+
+  geom_point()+
+  facet_wrap(~ratio,scales='free')+
+  geom_smooth(method='lm')
+
+#run linear regressions
+turb_reg <- ice_filt %>% 
+  select(avg_turbidity,20:55) %>% 
+  filter(!is.na(avg_turbidity), avg_turbidity < 7)
+
+turb_lm <- data.frame(band = rep(NA,37),
+                      r2 = rep(NA,37),
+                      p = rep(NA,37),
+                      slope = rep(NA,37),
+                      int = rep(NA,37))
+
+for(k in 2:length(bands)){
+  df = turb_reg %>% 
+    select(avg_turbidity,bands[k])
+  
+  turb_lm$band[k-1] = bands[k]
+  turb_lm$r2[k-1] = summary(lm(avg_turbidity~.,data=df))$adj.r.squared
+  turb_lm$p[k-1] = summary(lm(avg_turbidity~.,data=df))$coefficients[2,4]
+  turb_lm$slope[k-1] = summary(lm(avg_turbidity~.,data=df))$coefficients[2]
+  turb_lm$int[k-1] = summary(lm(avg_turbidity~.,data=df))$coefficients[1]
+}
+
+sig_turb_lm <- turb_lm %>% 
+  filter(p <= 0.05)
+
+#lots of good regressions
+
 

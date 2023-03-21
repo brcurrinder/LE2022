@@ -1,66 +1,56 @@
-# Analysis of 16S microbial data in limony dataset
-# November 2022, cleaned up March 2023
+# Random forest analysis of 16S microbial data predicting metabolism output
+# March 2023
 # AGS
 
-pacman::p_load(tidyverse, devtools, lubridate, limony)
+pacman::p_load(tidyverse, devtools, lubridate, limony, randomForest, pdp)
 
 # Load the data file generated in the microbial_cleaning.R script
-
+phyla_relabund <- read.csv(file = "Data/Microbial/phyla_relabund.csv")
+phyla_relabund <- phyla_relabund[,-1]
+phyla_relabund$sampledate <- as.Date(phyla_relabund$sampledate)
 
 #----------------------------------------------------------------------
 # Removing rare phyla
 #----------------------------------------------------------------------
 
 # Subset to only keep phyla that have a % relative abundance >2 at some point
-species_filter <- data_summed %>%
+species_filter <- phyla_relabund %>%
   group_by(phylum) %>%
   summarize(max = max(abund)) %>%
-  filter(max < 0.2) # change back to > 
+  filter(max > 0.2)
 
-data_summed_summarized <- data_summed %>%
+phyla_relabund_common <- phyla_relabund %>%
   filter(phylum %in% species_filter$phylum)
 
 # Correlation matrix between these 25 phyla
-
-wide <- pivot_wider(data_summed_summarized, names_from = phylum, values_from = abund)
-
+wide <- pivot_wider(phyla_relabund_common, names_from = phylum, values_from = abund)
 wide <- wide[,-c(1:6)]
-
 cormatrix <- cor(wide)
+# Most correlations are pretty low, so thinking of not removing any
 
-
+sort(cormatrix)
 
 #----------------------------------------------------------------------
-# For random forest analysis
+# Random forest analysis
 #----------------------------------------------------------------------
 
-
-
-
-
-
-library(randomForest)
-library(pdp)
-
-data_summed2 <- data_summed %>%
-  select(-c(date, day, month, year, doy)) 
-
-summarized <- data_summed2 %>%
+phyla_relabund_common <- phyla_relabund_common %>%
+  select(-c(date, day, month, year, doy)) %>%
   pivot_wider(names_from = phylum, values_from = abund)
 
-metabolism <- read.csv("Data/Metabolism_Model_Output/SimResultsMatrix_MetabData_run12jan23.csv") # load metab data
+metabolism <- read.csv("Data/Metabolism_Model_Output/SimResultsMatrix_MetabData_run12jan23.csv") # load metabolism data
 
-# try cutting off > 0.5 for NPP
+# Remove NPP outliers - cut off anything with NPP > 0.5
+metabolism <- subset(metabolism, EpiNPP_mgC_L < 0.5)
 
 metabolism <- metabolism %>% rename("sampledate" = "SimDate")
-
 metabolism$sampledate <- as.Date(metabolism$sampledate)
 
-rf_input <- merge(x = summarized, y = metabolism, by.x = "sampledate")
+rf_input <- merge(x = phyla_relabund_common, y = metabolism, by.x = "sampledate")
 
 rf_input <- rf_input %>%
-  select(1:73, 78) %>%
-  #select(1:27, 32) %>%
+  #select(1:73, 78) %>%
+  select(1:28, 31) %>%
   select(-contains("-")) # columns with dashes were causing us trouble
 
 # Create training and test sets
@@ -71,15 +61,15 @@ rf_test <- rf_input[!(rf_input$sampledate %in% rf_training$sampledate),]
 rf_training <- rf_training %>% select(-c(sampledate))
 
 # Run the random forest
-rf <- randomForest(data=rf_training, EpiNPP_mgC_L~., localImp=TRUE, err.rate=TRUE)
+rf <- randomForest(data=rf_training, EpiDO_mgO2_L~., localImp=TRUE, err.rate=TRUE)
 
 rf
-#plot(rf) # what it's supposed to look like
+plot(rf)
 
 # Plot predicted vs. observed NPP
 rf_test$predict <- predict(rf, rf_test)
 rf_test %>%
-  ggplot(aes(x= EpiNPP_mgC_L, y = predict)) +
+  ggplot(aes(x= EpiDO_mgO2_L, y = predict)) +
   geom_point() +
   geom_abline()
 
@@ -97,19 +87,18 @@ pd <- partial(object = rf,
               pred.var = 'Cyanobacteria',
               plot = TRUE)
 pd <- partial(object = rf,
-              pred.var = 'Bacteroidota',
+              pred.var = 'Acidobacteriota',
               plot = TRUE)
 pd <- partial(object = rf,
               pred.var = 'Planctomycetota',
               plot = TRUE)
 
 # Run actual regression and see what the r-squared is
-model <- lm(data = rf_test, formula = predict ~ EpiNPP_mgC_L)
+model <- lm(data = rf_test, formula = predict ~ EpiDO_mgO2_L)
 
 summary(model)
-# pretty good!
 
-
+# Below this still needs to be cleaned up
 
 #--------------------------------------------------------------
 # Plot trends in four desired phyla over time
