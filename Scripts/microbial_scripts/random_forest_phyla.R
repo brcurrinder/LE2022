@@ -1,4 +1,5 @@
 # Random forest analysis of 16S microbial data predicting metabolism output
+# Running the RF analysis on phyla
 # March 2023
 # AGS
 

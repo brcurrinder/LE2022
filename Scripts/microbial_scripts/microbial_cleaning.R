@@ -53,6 +53,8 @@ data <- merge(otu.taxonomy, otu.table, by = "seqID")
 # Make data long format
 data_long <- gather(data, date, abund, "23Apr2001":"24Apr2019")
 
+#--------------------------------------
+# Option 1: summing abundances by phyla
 # Sum abundances for each phyla on each date
 data_summed <- data_long %>%
   group_by(date, phylum) %>%
@@ -61,6 +63,16 @@ data_summed <- data_long %>%
 # This code is fine, but you can also get this directly from the limony list
 # phyla.table <- no.dl$av$Phylum
 # phyla.tax <- no.dl$names$Phylum
+#--------------------------------------
+
+#--------------------------------------
+# Option 2: summing abundances by OTU
+# Sum abundances for each OTU on each date
+data_summed <- data_long %>%
+  group_by(date, seqID) %>%
+  summarise(abund =  sum(abund, na.rm = TRUE)) %>%
+  ungroup()
+#--------------------------------------
 
 # Remove dates that have an extension after the date
 #data_summed <- data_summed[!grepl("\\.", data_summed$date), ]
@@ -76,7 +88,10 @@ data_summed <- data_summed %>%
 data_summed$year <- as.character(data_summed$year) # for plotting
 
 # Create .csv file of phyla abundances across all samples, for further analysis in microbial_analysis.R and random_forest.R scripts.
-write.csv(data_summed, file = "Data/Microbial/phyla_relabund.csv")
+# write.csv(data_summed, file = "Data/Microbial/phyla_relabund.csv")
+
+# Create .csv file of OTU abundances across all samples, for further analysis in microbial_analysis.R and random_forest.R scripts.
+# write.csv(data_summed, file = "Data/Microbial/OTU_relabund.csv")
 
 
 
