@@ -90,3 +90,25 @@ lds %>%
   labs(x = "Wavelength", y = "Loading", title = "PRISMA: all PCs over 1% variance")+
   theme_bw()
   
+## scratch
+vars = read_csv("CO_ignore/prisma_PCA_variances.csv") %>% 
+  mutate(component = component %>% str_replace("Comp.", "comp_")) %>% 
+  select(-value)
+
+data = lds %>% 
+  left_join(vars, by = c("name" = "component", "img_date"))
+
+data %>% 
+  mutate(grp = paste(name, img_date),
+         #following line is to group the panels by shape
+         cat = case_when(name %in% c("comp_1", "comp_2") ~ "PC 1, 2",
+                         name %in% c("comp_4", "comp_5") ~ "PC 4, 5",
+                         name %in% c("comp_6", "comp_7") ~ "PC 6, 7",
+                         T ~ "PC 3"))%>% 
+  ggplot(aes(x = band, y = value))+
+  geom_line(aes(group = grp, color= img_date, alpha = sqrt(sqrt(proportion))))+
+  facet_wrap(~ cat)+
+  scale_color_discrete(name = "Image Date")+
+  scale_alpha(name = "Prop. Var \nExplained", range = c(0, 1))+
+  labs(x = "Wavelength", y = "Loading", title = "PRISMA: all PCs at/over 1% variance")+
+  theme_bw()
